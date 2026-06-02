@@ -1,0 +1,13 @@
+# local reference repos — not part of this project
+_refs
+.claude
+
+node_modules/
+dist/
+data/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
