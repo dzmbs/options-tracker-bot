@@ -7,6 +7,7 @@ export const ANY_UNDERLYING = '*';
 export interface Subscription {
   id: number;
   chatId: number;
+  threadId: number | null;
   underlying: string; // uppercase base, or '*' for all
   minUsd: number;
   createdAt: number;
@@ -15,6 +16,7 @@ export interface Subscription {
 interface SubscriptionRow {
   id: number;
   chat_id: number;
+  thread_id: number | null;
   underlying: string;
   min_usd: number;
   created_at: number;
@@ -24,6 +26,7 @@ function toSubscription(row: SubscriptionRow): Subscription {
   return {
     id: row.id,
     chatId: row.chat_id,
+    threadId: row.thread_id ?? null,
     underlying: row.underlying,
     minUsd: row.min_usd,
     createdAt: row.created_at,
@@ -40,6 +43,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS alerts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         chat_id INTEGER NOT NULL,
+        thread_id INTEGER,
         underlying TEXT NOT NULL,
         min_usd REAL NOT NULL,
         created_at INTEGER NOT NULL,
@@ -50,14 +54,14 @@ export class Store {
   }
 
   /** One threshold per (chat, underlying) — re-adding overwrites. */
-  upsert(chatId: number, underlying: string, minUsd: number): void {
+  upsert(chatId: number, threadId: number | null, underlying: string, minUsd: number): void {
     this.db
       .prepare(
-        `INSERT INTO alerts (chat_id, underlying, min_usd, created_at)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT (chat_id, underlying) DO UPDATE SET min_usd = excluded.min_usd`,
+        `INSERT INTO alerts (chat_id, thread_id, underlying, min_usd, created_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (chat_id, underlying) DO UPDATE SET min_usd = excluded.min_usd, thread_id = excluded.thread_id`,
       )
-      .run(chatId, underlying, minUsd, Date.now());
+      .run(chatId, threadId, underlying, minUsd, Date.now());
   }
 
   remove(chatId: number, underlying: string): boolean {

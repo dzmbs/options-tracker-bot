@@ -41,17 +41,22 @@ export interface BotDeps {
 }
 
 export class Sender {
-  private readonly queue: Array<{ chatId: number; text: string; enqueuedAt: number }> = [];
+  private readonly queue: Array<{
+    chatId: number;
+    threadId: number | null;
+    text: string;
+    enqueuedAt: number;
+  }> = [];
   private draining = false;
 
   constructor(private readonly api: Api) {}
 
-  enqueue(chatId: number, text: string): void {
+  enqueue(chatId: number, threadId: number | null, text: string): void {
     if (this.queue.length >= MAX_QUEUE_LENGTH) {
       this.queue.shift();
       log.warn({ queued: this.queue.length }, 'send queue full — dropping oldest alert');
     }
-    this.queue.push({ chatId, text, enqueuedAt: Date.now() });
+    this.queue.push({ chatId, threadId, text, enqueuedAt: Date.now() });
     void this.drain();
   }
 
@@ -71,6 +76,7 @@ export class Sender {
           await this.api.sendMessage(message.chatId, message.text, {
             parse_mode: 'HTML',
             link_preview_options: { is_disabled: true },
+            ...(message.threadId != null && { message_thread_id: message.threadId }),
           });
         } catch (err: unknown) {
           log.warn({ chatId: message.chatId, err: String(err) }, 'alert send failed');
@@ -176,7 +182,7 @@ export function createBot(token: string, deps: BotDeps): Bot {
     if (usd > MAX_THRESHOLD_USD) {
       return ctx.reply(`Maximum notional threshold: ${fmtUsd(MAX_THRESHOLD_USD)}.`);
     }
-    deps.store.upsert(ctx.chat.id, underlying, usd);
+    deps.store.upsert(ctx.chat.id, ctx.message?.message_thread_id ?? null, underlying, usd);
     const scope = underlying === ANY_UNDERLYING ? 'all underlyings' : underlying;
     return ctx.reply(
       `🔔 Alerting on <b>${scope}</b> options trades ≥ <b>${fmtUsd(usd)}</b> notional.`,

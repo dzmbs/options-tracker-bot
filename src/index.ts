@@ -61,10 +61,10 @@ trades.subscribe((trade) => {
     trade,
     referencePrice(trade.underlying, trade.indexPrice),
   );
-  const chatIds = engine.evaluateTrade(trade, amounts);
-  if (chatIds == null) return;
+  const targets = engine.evaluateTrade(trade, amounts);
+  if (targets == null) return;
   const text = formatTradeAlert(trade, amounts);
-  for (const chatId of chatIds) sender.enqueue(chatId, text);
+  for (const { chatId, threadId } of targets) sender.enqueue(chatId, threadId, text);
 });
 
 blocks.subscribe((trade) => {
@@ -79,10 +79,10 @@ blocks.subscribe((trade) => {
       'block trade has no USD reference — alert evaluation skipped',
     );
   }
-  const chatIds = engine.evaluateBlock(trade, effectivePremiumUsd, displayNotionalUsd);
-  if (chatIds == null) return;
+  const targets = engine.evaluateBlock(trade, effectivePremiumUsd, displayNotionalUsd);
+  if (targets == null) return;
   const text = formatBlockAlert(trade, effectivePremiumUsd, displayNotionalUsd);
-  for (const chatId of chatIds) sender.enqueue(chatId, text);
+  for (const { chatId, threadId } of targets) sender.enqueue(chatId, threadId, text);
 });
 
 async function main(): Promise<void> {

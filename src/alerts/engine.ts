@@ -34,38 +34,49 @@ export class AlertEngine {
    * Block-flagged prints are excluded — the block path covers the same trade
    * with leg/strategy detail, and skipping here prevents double alerts.
    */
-  evaluateTrade(trade: TradeEvent, amounts: TradeAmounts): number[] | null {
+  evaluateTrade(
+    trade: TradeEvent,
+    amounts: TradeAmounts,
+  ): Array<{ chatId: number; threadId: number | null }> | null {
     if (trade.isBlock) return null;
     const usd = amounts.notionalUsd ?? amounts.premiumUsd;
     if (usd == null) return null;
     if (!this.isFresh(trade.timestamp)) return null;
     if (!this.markSeen(buildLiveTradeUid(trade))) return null;
 
-    return this.chatIds(trade.underlying, usd);
+    return this.targets(trade.underlying, usd);
   }
 
-  /** Chat ids to alert for a block/RFQ trade. */
+  /** Targets to alert for a block/RFQ trade. */
   evaluateBlock(
     trade: BlockTradeEvent,
     premiumUsd: number | null,
     notionalUsd: number | null,
-  ): number[] | null {
+  ): Array<{ chatId: number; threadId: number | null }> | null {
     const usd = notionalUsd ?? premiumUsd;
     if (usd == null) return null;
     if (!this.isFresh(trade.timestamp)) return null;
     if (!this.markSeen(buildBlockTradeUid(trade))) return null;
 
-    return this.chatIds(trade.underlying, usd);
+    return this.targets(trade.underlying, usd);
   }
 
   dispose(): void {
     clearInterval(this.pruneTimer);
   }
 
-  private chatIds(underlying: string, usd: number): number[] | null {
+  private targets(
+    underlying: string,
+    usd: number,
+  ): Array<{ chatId: number; threadId: number | null }> | null {
     const subs = this.store.matching(underlying, usd);
     if (subs.length === 0) return null;
-    return [...new Set(subs.map((sub) => sub.chatId))];
+    // dedup by chatId — one message per chat, use the specific-underlying thread over '*' wildcard
+    const seen = new Map<number, number | null>();
+    for (const sub of subs) {
+      if (!seen.has(sub.chatId) || sub.underlying !== '*') seen.set(sub.chatId, sub.threadId);
+    }
+    return [...seen.entries()].map(([chatId, threadId]) => ({ chatId, threadId }));
   }
 
   private isFresh(timestamp: number): boolean {
