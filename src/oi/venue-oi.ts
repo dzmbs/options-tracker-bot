@@ -213,8 +213,8 @@ export async function fetchBybitOi(underlying: string, spotPrice: number): Promi
 
   const records: OiRecord[] = [];
   for (const item of parsed.result.list) {
-    // Bybit uses same instrument name format as Deribit: "BTC-25DEC26-60000-C"
-    const inst = parseDeribitInstrument(item.symbol);
+    // Bybit appends "-USDT" to option symbols: "BTC-25DEC26-60000-C-USDT"
+    const inst = parseDeribitInstrument(item.symbol.replace(/-(?:USDT|USD)$/, ''));
     if (!inst) continue;
     // openInterestValue is notional USD; openInterest is in contracts (contractSize=1)
     const oiUsd = parseNum(item.openInterestValue) || parseNum(item.openInterest) * spotPrice;
@@ -237,7 +237,7 @@ export async function listBybitExpiries(underlying: string): Promise<string[]> {
   if (parsed.retCode !== 0) return [];
   const seen = new Set<string>();
   for (const item of parsed.result.list) {
-    const inst = parseDeribitInstrument(item.symbol);
+    const inst = parseDeribitInstrument(item.symbol.replace(/-(?:USDT|USD)$/, ''));
     if (inst) seen.add(inst.expiry);
   }
   return [...seen].sort();
