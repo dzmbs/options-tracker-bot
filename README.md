@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./assets/banner.png" width="420" />
+</p>
+
 # options-flow-bot
 
 Telegram bot for crypto options market insights and big-trade alerts across
