@@ -149,6 +149,17 @@ export function createBot(token: string, deps: BotDeps): Bot {
       return ctx.reply(formatAlertList(deps.store.listByChat(ctx.chat.id)), { parse_mode: 'HTML' });
     }
     const [rawUnderlying, rawUsd, ...rest] = match.split(/\s+/);
+    if (rawUnderlying?.toLowerCase() === 'remove') {
+      if (!rawUsd || rest.length > 0) {
+        return ctx.reply(
+          'Usage: /alert remove <underlying>\nExamples: /alert remove BTC, /alert remove ALL',
+        );
+      }
+      const target = parseTarget(rawUsd);
+      if (target == null) return ctx.reply(badUnderlying());
+      const removed = deps.store.remove(ctx.chat.id, target);
+      return ctx.reply(removed ? '✅ Removed.' : 'No alert set for that underlying.');
+    }
     if (!rawUnderlying || !rawUsd || rest.length > 0) {
       return ctx.reply(
         'Usage: /alert <underlying> <notional>\nExamples: /alert BTC 50k, /alert ALL 250k\nMinimum: $100 notional. Amounts: 50k = 50000, 1.5m = 1500000',
