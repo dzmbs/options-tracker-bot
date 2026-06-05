@@ -243,6 +243,31 @@ export async function listBybitExpiries(underlying: string): Promise<string[]> {
   return [...seen].sort();
 }
 
+const BinanceExchangeInfoSymbolSchema = z
+  .object({ expiryDate: z.number().optional() })
+  .passthrough();
+
+const BinanceExchangeInfoSchema = z.object({
+  optionSymbols: z.array(BinanceExchangeInfoSymbolSchema).optional(),
+  symbols: z.array(BinanceExchangeInfoSymbolSchema).optional(),
+});
+
+export async function listBinanceExpiries(_underlying: string): Promise<string[]> {
+  const url = `${BINANCE_REST_BASE_URL}/eapi/v1/exchangeInfo`;
+  const raw = await fetchJson(url);
+  const parsed = BinanceExchangeInfoSchema.parse(raw);
+  const symbols = parsed.optionSymbols ?? parsed.symbols ?? [];
+
+  const seen = new Set<string>();
+  for (const sym of symbols) {
+    if (!sym.expiryDate) continue;
+    // expiryDate is a Unix timestamp in ms; filter by underlying via symbol name if needed
+    const expiry = new Date(sym.expiryDate).toISOString().slice(0, 10);
+    seen.add(expiry);
+  }
+  return [...seen].sort();
+}
+
 const BinanceOiItemSchema = z.object({
   symbol: z.string(),
   sumOpenInterest: z.string(),

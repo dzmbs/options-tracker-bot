@@ -6,6 +6,7 @@ import {
   fetchDeribitSpotPrice,
   fetchDeriveOi,
   fetchOkxOi,
+  listBinanceExpiries,
   listBybitExpiries,
   listDeribitExpiries,
   listDeriveExpiries,
@@ -106,10 +107,11 @@ export interface ExpiryInfo {
 }
 
 export async function fetchExpiriesWithVenues(underlying: string): Promise<ExpiryInfo[]> {
-  const [deribit, okx, bybit, derive] = await Promise.allSettled([
+  const [deribit, okx, bybit, binance, derive] = await Promise.allSettled([
     listDeribitExpiries(underlying),
     listOkxExpiries(underlying),
     listBybitExpiries(underlying),
+    listBinanceExpiries(underlying),
     listDeriveExpiries(underlying),
   ]);
 
@@ -117,6 +119,7 @@ export async function fetchExpiriesWithVenues(underlying: string): Promise<Expir
     { id: 'deribit', expiries: deribit.status === 'fulfilled' ? deribit.value : [] },
     { id: 'okx', expiries: okx.status === 'fulfilled' ? okx.value : [] },
     { id: 'bybit', expiries: bybit.status === 'fulfilled' ? bybit.value : [] },
+    { id: 'binance', expiries: binance.status === 'fulfilled' ? binance.value : [] },
     { id: 'derive', expiries: derive.status === 'fulfilled' ? derive.value : [] },
   ];
 
