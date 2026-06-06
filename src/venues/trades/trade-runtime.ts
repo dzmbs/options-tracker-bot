@@ -456,6 +456,12 @@ export class TradeRuntime {
       }
     });
 
+    ws.on('pong', () => {
+      if (this.connections.get(key) !== ws) return;
+      const activeUnderlyings = this.getConnectionUnderlyings(stream, underlying);
+      this.updateStreamStates(stream.venue, activeUnderlyings, { lastMessageAt: Date.now() });
+    });
+
     ws.on('message', (raw: WebSocket.RawData) => {
       if (this.connections.get(key) !== ws) return;
 

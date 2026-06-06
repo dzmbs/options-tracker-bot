@@ -941,15 +941,16 @@ function binanceBlockPoller(): BlockVenuePoller {
   // the first confirmed geo-block we skip further network calls and return []
   // so runPoller stops logging errors every 120s for a known limitation.
   let geoBlocked = false;
+  let lastMaxId = 0n;
 
   return {
     venue: 'binance',
-    intervalMs: 120_000,
-    limit: 100,
+    intervalMs: 30_000,
+    limit: 500,
     async poll() {
       if (geoBlocked) return [];
 
-      const res = await fetch(`${BINANCE_REST_BASE_URL}${BINANCE_BLOCK_TRADES}?limit=100`, {
+      const res = await fetch(`${BINANCE_REST_BASE_URL}${BINANCE_BLOCK_TRADES}?limit=500`, {
         signal: AbortSignal.timeout(10_000),
       });
       const body = (await res.json()) as unknown;
@@ -966,13 +967,19 @@ function binanceBlockPoller(): BlockVenuePoller {
         }
         throw new Error(msg || `unexpected response shape (HTTP ${res.status})`);
       }
-      const items = body;
 
       const trades: BlockTradeEvent[] = [];
-      for (const item of items) {
+      let newMaxId: bigint | null = null;
+
+      for (const item of body) {
         const parsed = BinanceBlockTradeSchema.safeParse(item);
         if (!parsed.success) continue;
         const d = parsed.data;
+        const idBig = BigInt(d.id);
+        if (idBig <= lastMaxId) break;
+
+        if (newMaxId === null) newMaxId = idBig;
+
         const underlying = extractUnderlying(d.symbol);
         const price = Number(d.price);
         const size = Math.abs(Number(d.qty));
@@ -999,6 +1006,9 @@ function binanceBlockPoller(): BlockVenuePoller {
           indexPrice: null,
         });
       }
+
+      if (newMaxId !== null) lastMaxId = newMaxId;
+
       if (trades.length > 0)
         log.info({ venue: 'binance', count: trades.length }, 'polled block trades');
       return trades;
